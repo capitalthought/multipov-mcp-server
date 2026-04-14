@@ -1,0 +1,54 @@
+{
+  "name": "multipov-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for multipov.ai — stdio-to-HTTP proxy that forwards tool calls to the hosted multipov.ai MCP endpoint. Exposes 14 tools for multi-perspective AI reviews, persona browsing, and voice rewrites from MCP-aware clients like Claude Code, Claude Desktop, and Cursor.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "multipov-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "multipov",
+    "capital-thought",
+    "review",
+    "code-review",
+    "personas",
+    "ai-review"
+  ],
+  "author": "Capital Thought",
+  "license": "MIT",
+  "homepage": "https://multipov.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/capitalthought/multipov-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/capitalthought/multipov-mcp-server/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
