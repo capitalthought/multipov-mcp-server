@@ -1,6 +1,6 @@
 {
   "name": "multipov-mcp-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for multipov.ai — stdio-to-HTTP proxy that forwards tool calls to the hosted multipov.ai MCP endpoint. Exposes 14 tools for multi-perspective AI reviews, persona browsing, and voice rewrites from MCP-aware clients like Claude Code, Claude Desktop, and Cursor.",
   "type": "module",
   "main": "dist/index.js",
