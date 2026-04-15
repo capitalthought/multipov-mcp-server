@@ -1,0 +1,88 @@
+name: Publish to npm
+
+# Publishes to npm via Trusted Publishing (OIDC) — no long-lived tokens,
+# no NPM_TOKEN secret, fresh credentials minted per run via
+# GitHub Actions → npm OIDC exchange.
+#
+# Trigger: push a semver tag (e.g. `v0.1.1`). The workflow verifies
+# that the tag matches the version in package.json, then publishes
+# with provenance attestation attached.
+#
+# Setup: configure the trusted publisher on npmjs.com at
+# https://www.npmjs.com/package/multipov-mcp-server/access →
+# Trusted Publishers → Add → GitHub Actions → capitalthought /
+# multipov-mcp-server / publish.yml / (no environment).
+#
+# Release flow:
+#   npm version patch     # bumps package.json + creates commit + tag
+#   git push
+#   git push --tags       # triggers this workflow
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run npm publish in --dry-run mode (no actual upload)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+  # Required for Trusted Publishing — allows this workflow to mint an
+  # OIDC token that npm exchanges for a short-lived publish token.
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to npm with provenance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Verify tag matches package.json version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag v${TAG_VERSION} does not match package.json version ${PKG_VERSION}"
+            echo "Run 'npm version ${TAG_VERSION}' or push a matching tag."
+            exit 1
+          fi
+          echo "Tag v${TAG_VERSION} matches package.json ✓"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm (with provenance)
+        if: github.event_name != 'workflow_dispatch' || inputs.dry_run != 'true'
+        run: npm publish --access public --provenance
+
+      - name: Dry run (workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true'
+        run: npm publish --access public --provenance --dry-run
+
+      - name: Summary
+        run: |
+          echo "## Published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Package: \`multipov-mcp-server\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version: \`$(node -p "require('./package.json').version")\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Registry: https://www.npmjs.com/package/multipov-mcp-server" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Provenance: attached via sigstore" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Verify: \`npm view multipov-mcp-server --json | jq .dist.attestations\`" >> "$GITHUB_STEP_SUMMARY"
