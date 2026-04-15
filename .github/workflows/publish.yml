@@ -51,6 +51,15 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
+      - name: Upgrade npm to latest (Trusted Publishing requires >= 11.5.1)
+        # Node 22 ships with npm 10.x, which does NOT support OIDC exchange
+        # for Trusted Publishing. npm 11.5.1+ is required — without it, the
+        # publish step falls back to the placeholder NODE_AUTH_TOKEN that
+        # setup-node writes to ~/.npmrc and gets a 404 from the registry.
+        run: |
+          npm install -g npm@latest
+          npm --version
+
       - name: Verify tag matches package.json version
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         run: |
