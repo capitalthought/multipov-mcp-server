@@ -45,20 +45,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        # Node 24 ships with npm 11.x natively, which supports OIDC
+        # token exchange for Trusted Publishing. Node 22 ships with
+        # npm 10.x which does NOT — the publish step would fall back
+        # to the placeholder NODE_AUTH_TOKEN setup-node writes to
+        # ~/.npmrc and get rejected with a 404 from the registry.
+        # `npm install -g npm@latest` corrupts mid-upgrade on Actions
+        # runners (promise-retry disappears), so the cleanest fix is
+        # to start with a Node version that already has npm 11+.
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
-      - name: Upgrade npm to latest (Trusted Publishing requires >= 11.5.1)
-        # Node 22 ships with npm 10.x, which does NOT support OIDC exchange
-        # for Trusted Publishing. npm 11.5.1+ is required — without it, the
-        # publish step falls back to the placeholder NODE_AUTH_TOKEN that
-        # setup-node writes to ~/.npmrc and gets a 404 from the registry.
+      - name: Verify npm version supports Trusted Publishing
         run: |
-          npm install -g npm@latest
-          npm --version
+          NPM_VERSION="$(npm --version)"
+          echo "npm version: $NPM_VERSION"
+          # Require 11.5.1+ for OIDC token exchange
+          node -e "
+            const v = '$NPM_VERSION'.split('.').map(Number);
+            const min = [11, 5, 1];
+            const ok = v[0] > min[0] || (v[0] === min[0] && (v[1] > min[1] || (v[1] === min[1] && v[2] >= min[2])));
+            if (!ok) { console.error('npm ' + '$NPM_VERSION' + ' is too old for Trusted Publishing (need >= 11.5.1)'); process.exit(1); }
+            console.log('npm version OK for Trusted Publishing');
+          "
 
       - name: Verify tag matches package.json version
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
