@@ -24,9 +24,10 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { describeUpstreamError as describeUpstreamErrorRaw } from "./upstream-error.js";
 
 const PACKAGE_NAME = "multipov-mcp-server";
-const PACKAGE_VERSION = "0.1.0";
+const PACKAGE_VERSION = "0.1.2";
 
 // ---------------------------------------------------------------------------
 // Config & startup validation
@@ -75,40 +76,13 @@ const upstreamTransport = new StreamableHTTPClientTransport(new URL(REMOTE_URL),
 });
 
 /**
- * Translate an upstream error into a user-visible message. The SDK surfaces
- * HTTP-level failures as Error objects; we try to pull out status codes and
- * give actionable guidance for the common ones.
+ * Translate an upstream error into a user-visible message. Defined here as
+ * a thin closure over REMOTE_URL so callers don't need to thread the URL
+ * into every invocation; the heavy lifting lives in upstream-error.ts so
+ * it has a unit-testable surface.
  */
 function describeUpstreamError(err: unknown): string {
-  const e = err as { message?: string; code?: number } | undefined;
-  const msg = e?.message ?? String(err);
-
-  if (/401|unauthori[sz]ed/i.test(msg)) {
-    return (
-      "multipov.ai rejected the API key (HTTP 401). " +
-      "Check that MULTIPOV_API_KEY is set correctly and hasn't been revoked. " +
-      "You can rotate keys at https://multipov.ai/settings/api-keys."
-    );
-  }
-  if (/403|forbidden/i.test(msg)) {
-    return (
-      "multipov.ai refused the request (HTTP 403). " +
-      "Your account may not have access to this tool or feature."
-    );
-  }
-  if (/429|rate/i.test(msg)) {
-    return (
-      "multipov.ai rate-limited the request (HTTP 429). " +
-      "Wait a few seconds and retry, or check your daily quota at https://multipov.ai/settings."
-    );
-  }
-  if (/5\d\d|server error/i.test(msg)) {
-    return `multipov.ai returned a server error: ${msg}. Try again in a moment.`;
-  }
-  if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|network/i.test(msg)) {
-    return `Network error talking to ${REMOTE_URL}: ${msg}. Check your internet connection.`;
-  }
-  return msg;
+  return describeUpstreamErrorRaw(err, { remoteUrl: REMOTE_URL });
 }
 
 // ---------------------------------------------------------------------------
